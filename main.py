@@ -1,16 +1,12 @@
-from typing import Annotated
-
-from fastapi import Depends, FastAPI, HTTPException, Request, Cookie
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from http import HTTPStatus
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import EmailStr
 from sqlalchemy.orm import Session
-from starlette import status
 from starlette.responses import JSONResponse
 
 from crud import (get_user_by_username, create_user, verify_password, get_current_user, create_ad, get_ads, get_ad,
                   delete_ad)
 from database import SessionLocal
-from models import User
 from security import create_access_token
 from schemas import AdSchema
 
@@ -36,7 +32,7 @@ def register(username: str, email: EmailStr, password: str, db: Session = Depend
 
     db_user = get_user_by_username(db, username)
     if db_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="Username already registered")
 
     user = create_user(db, username, email, password)
     return {"username": user.username, "email": user.email}
@@ -48,7 +44,7 @@ def login(username: str, password: str, db: Session = Depends(get_db)):
 
     user = get_user_by_username(db, username)
     if not user or not verify_password(password, user.hashed_password):
-        return {'status_code': 401, 'detail': 'Invalid credentials'}
+        return JSONResponse(content='Invalid credentials', status_code=HTTPStatus.UNAUTHORIZED)
 
     token = create_access_token(user)
 
@@ -64,23 +60,33 @@ def read_users_me(token: str, db: Session = Depends(get_db)):
     return {"user": current_user}
 
 
-@app.post('/create_ad')
+@app.get('/ads')
+def get_list_of_ads(db: Session = Depends(get_db)):
+    """Возвращает список объявлений."""
+
+    return get_ads(db)
+
+
+@app.post('/ads/{ad_id}')
 def create(ad: AdSchema, db: Session = Depends(get_db)):
     """Создание объявления."""
 
     current_user = get_current_user(db, ad.token)
     create_ad(db, ad.title, ad.description, owner_id=current_user.id)
 
-    return {'status_code': 201, 'detail': 'Ad successfully create!'}
-
-
-@app.get('/ads')
-def get_list_of_ads(db: Session = Depends(get_db)):
-    return get_ads(db)
+    return JSONResponse(content='Ad successfully create!', status_code=HTTPStatus.CREATED)
 
 
 @app.get('/ads/{ad_id}')
 def get_certain_ad(ad_id: int, db: Session = Depends(get_db)):
+    """Возвращает определенное объявление."""
+
     return get_ad(db, ad_id)
 
 
+@app.delete('/ads/{ad_id}')
+def delete_certain_ad(ad_id: int, db: Session = Depends(get_db)):
+    """Удаляет определенное объявление."""
+
+    delete_ad(db, ad_id)
+    return JSONResponse(content='Ad successfully deleted', status_code=HTTPStatus.OK)
