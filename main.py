@@ -8,7 +8,7 @@ from crud import (get_user_by_username, create_user, verify_password, get_curren
                   delete_ad)
 from database import SessionLocal
 from security import create_access_token
-from schemas import AdSchema
+from schemas import AdSchema, UserSchema, TokenSchema
 
 app = FastAPI()
 
@@ -26,7 +26,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
-@app.post("/register")
+@app.post("/register", response_model=UserSchema)
 def register(username: str, email: EmailStr, password: str, db: Session = Depends(get_db)):
     """Регистрация пользователя."""
 
@@ -38,7 +38,7 @@ def register(username: str, email: EmailStr, password: str, db: Session = Depend
     return {"username": user.username, "email": user.email}
 
 
-@app.post("/token")
+@app.post("/token", response_model=TokenSchema)
 def login(username: str, password: str, db: Session = Depends(get_db)):
     """Аутентификация и получение токена."""
 
@@ -54,21 +54,23 @@ def login(username: str, password: str, db: Session = Depends(get_db)):
     return response
 
 
-@app.get('/users/me')
+@app.get('/users/me', response_model=UserSchema)
 def read_users_me(token: str, db: Session = Depends(get_db)):
+    """Получение текущего пользователя."""
+
     current_user = get_current_user(db, token)
     return {"user": current_user}
 
 
-@app.get('/ads')
-def get_list_of_ads(db: Session = Depends(get_db)):
+@app.get('/ads', response_model=AdSchema)
+def read_list_of_ads(db: Session = Depends(get_db)):
     """Возвращает список объявлений."""
 
     return get_ads(db)
 
 
-@app.post('/ads/{ad_id}')
-def create(ad: AdSchema, db: Session = Depends(get_db)):
+@app.post('/ads', response_model=AdSchema)
+def ad_create(ad: AdSchema, db: Session = Depends(get_db)):
     """Создание объявления."""
 
     current_user = get_current_user(db, ad.token)
@@ -77,16 +79,17 @@ def create(ad: AdSchema, db: Session = Depends(get_db)):
     return JSONResponse(content='Ad successfully create!', status_code=HTTPStatus.CREATED)
 
 
-@app.get('/ads/{ad_id}')
-def get_certain_ad(ad_id: int, db: Session = Depends(get_db)):
+@app.get('/ads/{ad_id}', response_model=AdSchema)
+def read_certain_ad(ad_id: int, db: Session = Depends(get_db)):
     """Возвращает определенное объявление."""
 
     return get_ad(db, ad_id)
 
 
-@app.delete('/ads/{ad_id}')
+@app.delete('/ads/{ad_id}', response_model=AdSchema)
 def delete_certain_ad(ad_id: int, db: Session = Depends(get_db)):
     """Удаляет определенное объявление."""
 
     delete_ad(db, ad_id)
+
     return JSONResponse(content='Ad successfully deleted', status_code=HTTPStatus.OK)

@@ -27,17 +27,10 @@ def get_user_by_username(db_session, username: str):
     return db_session.query(User).filter(User.username == username).first()
 
 
-# Функция для получения пользователя по ID
 def get_user_by_id(db_session, user_id: int):
     """Получение пользователя по id."""
 
     return db_session.query(User).filter(User.id == user_id).first()
-
-
-def get_user_by_email(db_session, email: str):
-    """Получение пользователя по email."""
-
-    return db_session.query(User).filter(User.email == email).first()
 
 
 def get_current_user(db_session, token):
