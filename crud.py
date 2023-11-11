@@ -2,7 +2,8 @@ from fastapi import HTTPException
 
 from models import Ad, User
 from security import password_hasher, create_password_hash, decode_token
-
+from schemas import RoleEnum
+from exceptions import UpdateRoleError
 
 def verify_password(plain_password, hashed_password):
     """Проверяет пароль."""
@@ -10,11 +11,11 @@ def verify_password(plain_password, hashed_password):
     return password_hasher.verify(plain_password, hashed_password)
 
 
-def create_user(db_session, username: str, email: str, password: str):
+def create_user(db_session, username: str, email: str, password: str, role: str):
     """Создает пользователя."""
 
     hashed_password = create_password_hash(password)
-    db_user = User(username=username, email=email, hashed_password=hashed_password)
+    db_user = User(username=username, email=email, hashed_password=hashed_password, role=role)
     db_session.add(db_user)
     db_session.commit()
     db_session.refresh(db_user)
@@ -27,10 +28,17 @@ def get_user_by_username(db_session, username: str):
     return db_session.query(User).filter(User.username == username).first()
 
 
+# Функция для получения пользователя по ID
 def get_user_by_id(db_session, user_id: int):
     """Получение пользователя по id."""
 
     return db_session.query(User).filter(User.id == user_id).first()
+
+
+def get_user_by_email(db_session, email: str):
+    """Получение пользователя по email."""
+
+    return db_session.query(User).filter(User.email == email).first()
 
 
 def get_current_user(db_session, token):
@@ -79,3 +87,18 @@ def delete_ad(db_session, ad_id: int):
 
     else:
         raise HTTPException(status_code=404, detail="Ad not found")
+
+
+def update_user_role(db_session, user_id: int, role: RoleEnum):
+    """Изменение роли пользователя только админом."""
+
+    user = db_session.query(User).filter(User.id == user_id).first()
+    if user.role == 'admin':
+        raise UpdateRoleError('Администратор не может менять права администратора!')
+    if user:
+        user.role = role.value
+        db_session.commit()
+        db_session.refresh(user)
+        return user
+    else:
+        return None

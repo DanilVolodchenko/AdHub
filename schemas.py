@@ -9,18 +9,30 @@ class TitleEnum(str, Enum):
     service = 'Оказание услуг'
 
 
-class AdSchema(BaseModel):
+class RoleEnum(str, Enum):
+    admin = 'admin'
+    user = 'user'
+
+
+class UserCreateSchema(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+    role: RoleEnum = RoleEnum.user
+
+
+class AdCreateSchema(BaseModel):
     token: str
     title: TitleEnum = Field(default=TitleEnum.sell)
     description: str = Field(min_length=5, max_length=250)
 
 
-class UserSchema(BaseModel):
-    username: str
-    email: EmailStr
-    hashed_password: str
+class AdReadSchema(BaseModel):
+    title: str
+    description: str
+    owner_id: int
 
 
-class TokenSchema(BaseModel):
+class GetTokenSchema(BaseModel):
     username: str
-    hashed_password: str
+    password: str
