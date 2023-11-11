@@ -14,6 +14,21 @@ class RoleEnum(str, Enum):
     user = 'user'
 
 
+class UserRegisterSchema(BaseModel):
+    id: int
+    username: str
+    email: str
+    role: RoleEnum
+
+
+class UserReadSchema(BaseModel):
+    id: int
+    username: str
+    email: str
+    hash_password: str = 'asdf'
+    role: RoleEnum = RoleEnum.user
+
+
 class UserCreateSchema(BaseModel):
     username: str
     email: EmailStr
@@ -27,6 +42,7 @@ class AdCreateSchema(BaseModel):
 
 
 class AdReadSchema(BaseModel):
+    id: int
     title: str
     description: str
     owner_id: int
@@ -38,6 +54,7 @@ class GetTokenSchema(BaseModel):
 
 
 class CommentReadSchema(BaseModel):
+    id: int
     text: str
     owner_id: int
     ad_id: int

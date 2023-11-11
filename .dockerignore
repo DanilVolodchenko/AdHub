@@ -2,3 +2,4 @@ env
 .git
 .idea
 .env
+.env.example

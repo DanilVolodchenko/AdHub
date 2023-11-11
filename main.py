@@ -4,13 +4,15 @@ from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse
 
-from crud import (get_user_by_username, create_user, verify_password, get_current_user, create_ad, get_ads, get_ad,
-                  delete_ad, update_user_role, get_comment, get_comments, create_comment, delete_comment)
+from crud import (get_user_by_username, create_user, verify_password,
+                  get_current_user, create_ad, get_ads, get_ad,
+                  delete_ad, update_user_role, get_comment, get_comments,
+                  create_comment, delete_comment)
 from database import SessionLocal
 from security import create_access_token
-from schemas import AdCreateSchema, UserCreateSchema, GetTokenSchema, AdReadSchema, RoleEnum, CommentReadSchema, \
-    CommentCreateSchema
-from exceptions import UpdateRoleError, TokenError
+from schemas import (AdCreateSchema, UserCreateSchema, GetTokenSchema,
+                     AdReadSchema, RoleEnum, CommentReadSchema,
+                     CommentCreateSchema, UserReadSchema, UserRegisterSchema)
 
 app = FastAPI()
 
@@ -23,16 +25,16 @@ def get_db():
         db.close()
 
 
-@app.post("/register")
+@app.post("/register", response_model=UserRegisterSchema)
 def register(user: UserCreateSchema, db: Session = Depends(get_db)):
     """Регистрация пользователя."""
 
     db_user = get_user_by_username(db, user.username)
     if db_user:
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail='Такой пользователь уже зарегистрирован!')
+        raise HTTPException(detail='Такой пользователь уже зарегистрирован!',
+                            status_code=HTTPStatus.BAD_REQUEST)
 
-    user = create_user(db, user.username, user.email, user.password, user.role)
-    return {'username': user.username, 'email': user.email}
+    return create_user(db, user.username, user.email, user.password, user.role)
 
 
 @app.post('/token', response_model=GetTokenSchema)
@@ -41,49 +43,31 @@ def login(username: str, password: str, db: Session = Depends(get_db)):
 
     user = get_user_by_username(db, username)
     if not user or not verify_password(password, user.hashed_password):
-        return JSONResponse(content='Неверные данные', status_code=HTTPStatus.UNAUTHORIZED)
+        raise HTTPException(detail='Неверный username или password!',
+                            status_code=HTTPStatus.BAD_REQUEST)
 
     token = create_access_token(user)
 
-    response = JSONResponse(content={'token_type': 'jwt', 'token': token})
-
-    return response
+    return JSONResponse(content={'token_type': 'jwt', 'token': token})
 
 
-@app.get('/users/me')
+@app.get('/users/me', response_model=UserReadSchema)
 def read_users_me(token: str, db: Session = Depends(get_db)):
     """Получение текущего пользователя."""
 
-    try:
-        current_user = get_current_user(db, token)
-    except TokenError:
-        return JSONResponse(content='Неверный токен!', status_code=HTTPStatus.UNAUTHORIZED)
+    current_user = get_current_user(db, token)
 
-    return {'status_code': HTTPStatus.OK, 'user': current_user}
+    return current_user
 
 
-@app.patch('/users/{user_id}')
+@app.patch('/users/{user_id}', response_model=UserReadSchema)
 def update_user(user_id: int, token: str, db: Session = Depends(get_db)):
     """Изменение роли пользователя."""
 
-    try:
-        current_user = get_current_user(db, token)
-    except TokenError:
-        return JSONResponse(content='Неверный токен!', status_code=HTTPStatus.UNAUTHORIZED)
+    current_user = get_current_user(db, token)
+    user = update_user_role(db, user_id, RoleEnum.admin, current_user.role)
 
-    if current_user.role != 'admin':
-        return JSONResponse(content='Нет прав для этой операции!', status_code=HTTPStatus.BAD_REQUEST)
-
-    try:
-        user = update_user_role(db, user_id, role=RoleEnum.admin)
-        if not user:
-            return JSONResponse(content='Такого пользователя не существует!', status_code=HTTPStatus.NOT_FOUND)
-
-        return JSONResponse(content=f'Изменение роль пользователя {user.username} прошло успешно!',
-                            status_code=HTTPStatus.OK)
-
-    except UpdateRoleError:
-        return JSONResponse(content='Нет прав для этой операции!', status_code=HTTPStatus.BAD_REQUEST)
+    return user
 
 
 @app.get('/ads', response_model=list[AdReadSchema])
@@ -97,41 +81,30 @@ def read_list_of_ads(db: Session = Depends(get_db)):
 def read_certain_ad(ad_id: int, db: Session = Depends(get_db)):
     """Возвращает определенное объявление."""
 
-    ads = get_ad(db, ad_id)
-    if not ads:
-        return JSONResponse(content='Объявление не найдено!')
+    ad = get_ad(db, ad_id)
 
-    return ads
+    return ad
 
 
-@app.post('/ads', response_model=AdCreateSchema)
+@app.post('/ads', response_model=AdReadSchema)
 def ad_create(token: str, ad: AdCreateSchema, db: Session = Depends(get_db)):
     """Создание объявления."""
 
-    try:
-        current_user = get_current_user(db, token)
-    except TokenError:
-        return JSONResponse(content='Неверный токен!', status_code=HTTPStatus.UNAUTHORIZED)
+    current_user = get_current_user(db, token)
+    ad = create_ad(db, ad.title, ad.description, owner_id=current_user.id)
 
-    create_ad(db, ad.title, ad.description, owner_id=current_user.id)
-
-    return JSONResponse(content='Объявление успешно создано!', status_code=HTTPStatus.CREATED)
+    return ad
 
 
 @app.delete('/ads/{ad_id}')
 def delete_certain_ad(ad_id: int, token: str, db: Session = Depends(get_db)):
     """Удаляет определенное объявление."""
 
-    try:
-        current_user = get_current_user(db, token)
-    except TokenError:
-        return JSONResponse(content='Неверный токен!', status_code=HTTPStatus.UNAUTHORIZED)
-    try:
-        delete_ad(db, ad_id, current_user)
-    except HTTPException:
-        return JSONResponse(content='Нет прав на удаление объявления!', status_code=HTTPStatus.UNAUTHORIZED)
+    current_user = get_current_user(db, token)
+    delete_ad(db, ad_id, current_user)
 
-    return JSONResponse(content='Объявление успешно удалено!', status_code=HTTPStatus.OK)
+    return JSONResponse(content={'detail': 'Объявление успешно удалено!'},
+                        status_code=HTTPStatus.OK)
 
 
 @app.get('/comments', response_model=list[CommentReadSchema])
@@ -141,38 +114,30 @@ def get_list_of_comments(db: Session = Depends(get_db)):
 
 @app.get('/comments/{comment_id}', response_model=CommentReadSchema)
 def get_certain_comment(comment_id: int, db: Session = Depends(get_db)):
-    comment = get_comment(db, comment_id)
-    if not comment:
-        return JSONResponse(content='Комментарий не найден!')
+    """Возвращает определенный комментарий"""
 
-    return comment
+    return get_comment(db, comment_id)
 
 
-@app.post('/comments/{ad_id}')
-def comment_create(ad_id: int, token: str, comment: CommentCreateSchema, db: Session = Depends(get_db)):
+@app.post('/comments/{ad_id}', response_model=CommentReadSchema)
+def comment_create(ad_id: int, token: str,
+                   comment: CommentCreateSchema,
+                   db: Session = Depends(get_db)):
     """Создание комментария к объявлению."""
 
-    try:
-        current_user = get_current_user(db, token)
-        create_comment(db, comment.text, current_user.id, ad_id)
+    current_user = get_current_user(db, token)
+    comment = create_comment(db, comment.text, current_user.id, ad_id)
 
-    except ValueError:
-        return JSONResponse(content='Объявление не найдено!', status_code=HTTPStatus.CREATED)
-    except TokenError:
-        return JSONResponse(content='Неверный токен!', status_code=HTTPStatus.UNAUTHORIZED)
-
-    return JSONResponse(content='Комментарий успешно создан!', status_code=HTTPStatus.CREATED)
+    return comment
 
 
 @app.delete('/comments/{comment_id}')
 def comment_delete(comment_id: int, token: str, db: Session = Depends(get_db)):
     """Удаление комментария."""
 
-    try:
-        current_user = get_current_user(db, token)
-    except TokenError:
-        return JSONResponse(content='Неверный токен!', status_code=HTTPStatus.UNAUTHORIZED)
+    current_user = get_current_user(db, token)
 
     delete_comment(db, comment_id, current_user.id)
 
-    return JSONResponse(content='Комментарий успешно удален!', status_code=HTTPStatus.OK)
+    return JSONResponse(content={'detail': 'Комментарий успешно удален!'},
+                        status_code=HTTPStatus.OK)
