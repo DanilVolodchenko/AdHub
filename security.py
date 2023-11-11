@@ -2,10 +2,10 @@ from passlib.context import CryptContext
 from models import User
 from jose import jwt
 
-from config import JWT_SECRET, ALGORITHM
+# from config import JWT_SECRET, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
-JWT_SECRET = JWT_SECRET
-ALGORITHM = ALGORITHM
+JWT_SECRET = 'JWT_SECRET'
+ALGORITHM = 'HS256'
 ACCESS_TOKEN_EXPIRE_MINUTES = 3000
 
 password_hasher = CryptContext(schemes=["bcrypt"])

@@ -20,7 +20,7 @@ class User(Base):
     role = Column(String, default=RoleEnum.user, nullable=True)
 
     ads = relationship('Ad', back_populates='owner')
-    comments = relationship('Comment', back_populates='owner')
+    comments = relationship('Comment', back_populates='user')
 
 
 class Ad(Base):
@@ -35,11 +35,11 @@ class Ad(Base):
     owner_id = Column(Integer, ForeignKey('users.id'))
 
     owner = relationship('User', back_populates='ads')
-    comment = relationship('Comment', back_populates='ads')
+    comments = relationship('Comment', back_populates='ad')
 
 
 class Comment(Base):
-    """Таблица комментариев,"""
+    """Таблица комментариев."""
 
     __tablename__ = 'comments'
     metadata = metadata
@@ -49,5 +49,5 @@ class Comment(Base):
     owner_id = Column(Integer, ForeignKey('users.id'))
     ad_id = Column(Integer, ForeignKey('ads.id'))
 
-    owner = relationship('User', back_populates='comments')
+    user = relationship('User', back_populates='comments')
     ad = relationship('Ad', back_populates='comments')

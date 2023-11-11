@@ -5,11 +5,12 @@ from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse
 
 from crud import (get_user_by_username, create_user, verify_password, get_current_user, create_ad, get_ads, get_ad,
-                  delete_ad, update_user_role)
+                  delete_ad, update_user_role, get_comment, get_comments, create_comment, delete_comment)
 from database import SessionLocal
 from security import create_access_token
-from schemas import AdCreateSchema, UserCreateSchema, GetTokenSchema, AdReadSchema, RoleEnum
-from exceptions import UpdateRoleError
+from schemas import AdCreateSchema, UserCreateSchema, GetTokenSchema, AdReadSchema, RoleEnum, CommentReadSchema, \
+    CommentCreateSchema
+from exceptions import UpdateRoleError, TokenError
 
 app = FastAPI()
 
@@ -22,30 +23,25 @@ def get_db():
         db.close()
 
 
-SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-
-@app.post("/register")  # , response_model=UserSchema)
+@app.post("/register")
 def register(user: UserCreateSchema, db: Session = Depends(get_db)):
     """Регистрация пользователя."""
 
     db_user = get_user_by_username(db, user.username)
     if db_user:
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="Такой пользователь уже зарегистрирован!")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail='Такой пользователь уже зарегистрирован!')
 
     user = create_user(db, user.username, user.email, user.password, user.role)
-    return {"username": user.username, "email": user.email}
+    return {'username': user.username, 'email': user.email}
 
 
-@app.post("/token", response_model=GetTokenSchema)
+@app.post('/token', response_model=GetTokenSchema)
 def login(username: str, password: str, db: Session = Depends(get_db)):
     """Аутентификация и получение токена."""
 
     user = get_user_by_username(db, username)
     if not user or not verify_password(password, user.hashed_password):
-        return JSONResponse(content='Invalid credentials', status_code=HTTPStatus.UNAUTHORIZED)
+        return JSONResponse(content='Неверные данные', status_code=HTTPStatus.UNAUTHORIZED)
 
     token = create_access_token(user)
 
@@ -58,16 +54,23 @@ def login(username: str, password: str, db: Session = Depends(get_db)):
 def read_users_me(token: str, db: Session = Depends(get_db)):
     """Получение текущего пользователя."""
 
-    current_user = get_current_user(db, token)
+    try:
+        current_user = get_current_user(db, token)
+    except TokenError:
+        return JSONResponse(content='Неверный токен!', status_code=HTTPStatus.UNAUTHORIZED)
 
-    return {'status_code': HTTPStatus.OK, "user": current_user}
+    return {'status_code': HTTPStatus.OK, 'user': current_user}
 
 
 @app.patch('/users/{user_id}')
 def update_user(user_id: int, token: str, db: Session = Depends(get_db)):
     """Изменение роли пользователя."""
 
-    current_user = get_current_user(db, token)
+    try:
+        current_user = get_current_user(db, token)
+    except TokenError:
+        return JSONResponse(content='Неверный токен!', status_code=HTTPStatus.UNAUTHORIZED)
+
     if current_user.role != 'admin':
         return JSONResponse(content='Нет прав для этой операции!', status_code=HTTPStatus.BAD_REQUEST)
 
@@ -96,28 +99,80 @@ def read_certain_ad(ad_id: int, db: Session = Depends(get_db)):
 
     ads = get_ad(db, ad_id)
     if not ads:
-        return JSONResponse(content='Такого объявления нет!')
+        return JSONResponse(content='Объявление не найдено!')
 
     return ads
 
 
 @app.post('/ads', response_model=AdCreateSchema)
-def ad_create(ad: AdCreateSchema, db: Session = Depends(get_db)):
+def ad_create(token: str, ad: AdCreateSchema, db: Session = Depends(get_db)):
     """Создание объявления."""
 
-    current_user = get_current_user(db, ad.token)
+    try:
+        current_user = get_current_user(db, token)
+    except TokenError:
+        return JSONResponse(content='Неверный токен!', status_code=HTTPStatus.UNAUTHORIZED)
+
     create_ad(db, ad.title, ad.description, owner_id=current_user.id)
 
     return JSONResponse(content='Объявление успешно создано!', status_code=HTTPStatus.CREATED)
 
 
 @app.delete('/ads/{ad_id}')
-def delete_certain_ad(ad_id: int, db: Session = Depends(get_db)):
+def delete_certain_ad(ad_id: int, token: str, db: Session = Depends(get_db)):
     """Удаляет определенное объявление."""
 
-    delete_ad(db, ad_id)
+    try:
+        current_user = get_current_user(db, token)
+    except TokenError:
+        return JSONResponse(content='Неверный токен!', status_code=HTTPStatus.UNAUTHORIZED)
+    try:
+        delete_ad(db, ad_id, current_user)
+    except HTTPException:
+        return JSONResponse(content='Нет прав на удаление объявления!', status_code=HTTPStatus.UNAUTHORIZED)
 
     return JSONResponse(content='Объявление успешно удалено!', status_code=HTTPStatus.OK)
 
 
+@app.get('/comments', response_model=list[CommentReadSchema])
+def get_list_of_comments(db: Session = Depends(get_db)):
+    return get_comments(db)
 
+
+@app.get('/comments/{comment_id}', response_model=CommentReadSchema)
+def get_certain_comment(comment_id: int, db: Session = Depends(get_db)):
+    comment = get_comment(db, comment_id)
+    if not comment:
+        return JSONResponse(content='Комментарий не найден!')
+
+    return comment
+
+
+@app.post('/comments/{ad_id}')
+def comment_create(ad_id: int, token: str, comment: CommentCreateSchema, db: Session = Depends(get_db)):
+    """Создание комментария к объявлению."""
+
+    try:
+        current_user = get_current_user(db, token)
+        create_comment(db, comment.text, current_user.id, ad_id)
+
+    except ValueError:
+        return JSONResponse(content='Объявление не найдено!', status_code=HTTPStatus.CREATED)
+    except TokenError:
+        return JSONResponse(content='Неверный токен!', status_code=HTTPStatus.UNAUTHORIZED)
+
+    return JSONResponse(content='Комментарий успешно создан!', status_code=HTTPStatus.CREATED)
+
+
+@app.delete('/comments/{comment_id}')
+def comment_delete(comment_id: int, token: str, db: Session = Depends(get_db)):
+    """Удаление комментария."""
+
+    try:
+        current_user = get_current_user(db, token)
+    except TokenError:
+        return JSONResponse(content='Неверный токен!', status_code=HTTPStatus.UNAUTHORIZED)
+
+    delete_comment(db, comment_id, current_user.id)
+
+    return JSONResponse(content='Комментарий успешно удален!', status_code=HTTPStatus.OK)

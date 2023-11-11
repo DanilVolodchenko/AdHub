@@ -22,7 +22,6 @@ class UserCreateSchema(BaseModel):
 
 
 class AdCreateSchema(BaseModel):
-    token: str
     title: TitleEnum = Field(default=TitleEnum.sell)
     description: str = Field(min_length=5, max_length=250)
 
@@ -36,3 +35,13 @@ class AdReadSchema(BaseModel):
 class GetTokenSchema(BaseModel):
     username: str
     password: str
+
+
+class CommentReadSchema(BaseModel):
+    text: str
+    owner_id: int
+    ad_id: int
+
+
+class CommentCreateSchema(BaseModel):
+    text: str
