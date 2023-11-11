@@ -8,4 +8,6 @@ DB_NAME = config.get('DB_NAME')
 DB_USER = config.get('DB_USER')
 DB_PASSWORD = config.get('DB_PASSWORD')
 
-SECRET_KEY=config.get('SECRET_KEY')
+JWT_SECRET = config.get('JWT_SECRET')
+ALGORITHM = config.get('ALGORITHM')
+ACCESS_TOKEN_EXPIRE_MINUTES = config.get('ACCESS_TOKEN_EXPIRE_MINUTES')
