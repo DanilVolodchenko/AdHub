@@ -48,9 +48,14 @@ class AdReadSchema(BaseModel):
     owner_id: int
 
 
-class GetTokenSchema(BaseModel):
+class TokenSchema(BaseModel):
     username: str
     password: str
+
+
+class GetTokenSchema(BaseModel):
+    token_type: str
+    token: str
 
 
 class CommentReadSchema(BaseModel):

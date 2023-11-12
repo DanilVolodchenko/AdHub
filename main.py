@@ -12,7 +12,8 @@ from database import SessionLocal
 from security import create_access_token
 from schemas import (AdCreateSchema, UserCreateSchema, GetTokenSchema,
                      AdReadSchema, RoleEnum, CommentReadSchema,
-                     CommentCreateSchema, UserReadSchema, UserRegisterSchema)
+                     CommentCreateSchema, UserReadSchema, UserRegisterSchema,
+                     TokenSchema)
 
 app = FastAPI()
 
@@ -38,15 +39,15 @@ def register(user: UserCreateSchema, db: Session = Depends(get_db)):
 
 
 @app.post('/token', response_model=GetTokenSchema)
-def login(username: str, password: str, db: Session = Depends(get_db)):
+def login(user: TokenSchema, db: Session = Depends(get_db)):
     """Аутентификация и получение токена."""
 
-    user = get_user_by_username(db, username)
-    if not user or not verify_password(password, user.hashed_password):
+    db_user = get_user_by_username(db, user.username)
+    if not user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(detail='Неверный username или password!',
                             status_code=HTTPStatus.BAD_REQUEST)
 
-    token = create_access_token(user)
+    token = create_access_token(db_user)
 
     return JSONResponse(content={'token_type': 'jwt', 'token': token})
 
