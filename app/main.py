@@ -4,13 +4,13 @@ from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse
 
-from crud import (get_user_by_username, create_user, verify_password,
+from app.crud import (get_user_by_username, create_user, verify_password,
                   get_current_user, create_ad, get_ads, get_ad,
                   delete_ad, update_user_role, get_comment, get_comments,
                   create_comment, delete_comment)
-from database import SessionLocal
-from security import create_access_token
-from schemas import (AdCreateSchema, UserCreateSchema, GetTokenSchema,
+from app.database import SessionLocal
+from app.security import create_access_token
+from app.schemas import (AdCreateSchema, UserCreateSchema, GetTokenSchema,
                      AdReadSchema, RoleEnum, CommentReadSchema,
                      CommentCreateSchema, UserReadSchema, UserRegisterSchema,
                      TokenSchema)

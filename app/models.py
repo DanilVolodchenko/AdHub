@@ -1,8 +1,8 @@
 from sqlalchemy import Column, ForeignKey, MetaData, Integer, String
 from sqlalchemy.orm import relationship
 
-from database import Base
-from schemas import RoleEnum
+from app.database import Base
+from app.schemas import RoleEnum
 
 metadata = MetaData()
 

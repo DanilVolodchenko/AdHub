@@ -2,9 +2,9 @@ from fastapi import HTTPException
 from jose import JWTError
 from http import HTTPStatus
 
-from models import Ad, User, Comment
-from security import password_hasher, create_password_hash, decode_token
-from database import SessionLocal
+from app.models import Ad, User, Comment
+from app.security import password_hasher, create_password_hash, decode_token
+from app.database import SessionLocal
 
 
 def verify_password(plain_password, hashed_password):

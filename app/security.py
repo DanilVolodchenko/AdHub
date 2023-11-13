@@ -1,7 +1,7 @@
 from passlib.context import CryptContext
-from models import User
 from jose import jwt
 
+from app.models import User
 from config import JWT_SECRET, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
 JWT_SECRET = JWT_SECRET

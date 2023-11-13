@@ -21,12 +21,20 @@ class UserRegisterSchema(BaseModel):
     role: RoleEnum
 
 
+class AdReadSchema(BaseModel):
+    id: int
+    title: str
+    description: str
+    owner_id: int
+
+
 class UserReadSchema(BaseModel):
     id: int
     username: str
     email: str
     hash_password: str = 'asdf'
     role: RoleEnum = RoleEnum.user
+    ads: list[AdReadSchema] = []
 
 
 class UserCreateSchema(BaseModel):
@@ -39,13 +47,6 @@ class UserCreateSchema(BaseModel):
 class AdCreateSchema(BaseModel):
     title: TitleEnum = Field(default=TitleEnum.sell)
     description: str = Field(min_length=5, max_length=250)
-
-
-class AdReadSchema(BaseModel):
-    id: int
-    title: str
-    description: str
-    owner_id: int
 
 
 class TokenSchema(BaseModel):
