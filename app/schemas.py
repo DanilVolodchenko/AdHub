@@ -14,63 +14,67 @@ class RoleEnum(str, Enum):
     user = 'user'
 
 
-class TokenSchema(BaseModel):
+class UserBase(BaseModel):
+    username: str
+    email: EmailStr
+    role: RoleEnum
+
+
+class AdBase(BaseModel):
+    title: str = Field(default=TitleEnum.sell)
+    description: str = Field(min_length=5, max_length=500)
+
+
+class CommentBase(BaseModel):
+    text: str = Field(min_length=5, max_length=300)
+
+
+class User(UserBase):
+    id: int
+
+
+class Ad(AdBase):
+    id: int
+
+
+class Comment(CommentBase):
+    id: int
+
+
+class UserRead(UserBase):
+    id: int
+    ads: list[Ad] = []
+    comments: list[Comment] = []
+
+
+class UserCreate(UserBase):
+    password: str
+
+
+class Token(BaseModel):
     username: str
     password: str
 
 
-class GetTokenSchema(BaseModel):
+class TokenRead(BaseModel):
     token_type: str
     token: str
 
 
-class AdUserSchema(BaseModel):
+class AdRead(AdBase):
     id: int
-    username: str
-    email: str
+    owner: User
 
 
-class AdReadSchema(BaseModel):
+class AdCreate(AdBase):
+    pass
+
+
+class CommentRead(CommentBase):
     id: int
-    title: str
-    description: str
-    owner: AdUserSchema
+    user: User
+    ad: Ad
 
 
-class AdCreateSchema(BaseModel):
-    title: TitleEnum = Field(default=TitleEnum.sell)
-    description: str = Field(min_length=5, max_length=250)
-
-
-class CommentReadSchema(BaseModel):
-    id: int
-    text: str
-    owner_id: int
-    ad_id: int
-
-
-class CommentCreateSchema(BaseModel):
-    text: str
-
-
-class UserRegisterSchema(BaseModel):
-    id: int
-    username: str
-    email: str
-    role: RoleEnum
-
-
-class UserReadSchema(BaseModel):
-    id: int
-    username: str
-    email: str
-    role: RoleEnum = RoleEnum.user
-    ads: list[AdReadSchema] = []
-    comments: list[CommentReadSchema] = []
-
-
-class UserCreateSchema(BaseModel):
-    username: str
-    email: EmailStr
-    password: str
-    role: RoleEnum = RoleEnum.user
+class CommentCreate(CommentBase):
+    pass

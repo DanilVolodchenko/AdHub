@@ -4,9 +4,11 @@ from fastapi import HTTPException, security, Depends
 from jose import JWTError
 from http import HTTPStatus
 
+from sqlalchemy.orm import Session
+
 from app.models import Ad, User, Comment
 from app.security import password_hasher, create_password_hash, decode_token
-from app.database import SessionLocal
+from app.database import SessionLocal, get_db
 
 oauth2_scheme = security.OAuth2PasswordBearer(tokenUrl="token")
 
@@ -30,13 +32,36 @@ def create_user(db_session, username: str,
     return db_user
 
 
-def get_user_by_username(db_session, username: str):
+def get_user_by_username(db_session: SessionLocal, username: str):
     """Получение пользователя по его username."""
 
     return db_session.query(User).filter(User.username == username).first()
 
 
-def get_current_user(db_session, token: Annotated[str, Depends(oauth2_scheme)]):
+def get_user_by_email(db_session: SessionLocal, email: str):
+    """Получение пользователя по его email."""
+
+    return db_session.query(User).filter(User.email == email).first()
+
+
+# def get_current_user(db_session: Session, token: Annotated[str, Depends(oauth2_scheme)]):
+#     """Получение текущего пользователя."""
+#
+#     try:
+#         get_data = decode_token(token)
+#     except JWTError:
+#         raise HTTPException(detail='Неверный токен!',
+#                             status_code=HTTPStatus.NOT_FOUND)
+#
+#     username = get_data.get('username')
+#
+#     user = db_session.query(User).filter(User.username == username).first()
+#
+#     if not user:
+#         raise HTTPException(detail='Пользователь не найден!',
+#                             status_code=HTTPStatus.NOT_FOUND)
+#     return user
+def get_current_user(token: str = Depends(oauth2_scheme), db_session: SessionLocal = Depends(get_db)):
     """Получение текущего пользователя."""
 
     try:
@@ -55,10 +80,10 @@ def get_current_user(db_session, token: Annotated[str, Depends(oauth2_scheme)]):
     return user
 
 
-def get_ad(db_session, ad_id: int):
+def get_ad(db_session: Session, ad_id: int):
     """Получения объявления по id."""
 
-    ad = db_session.query(Ad).filter(Ad.id == ad_id).first()
+    ad = db_session.query(Ad).get(ad_id)
     if not ad:
         raise HTTPException(detail='Объявление не найдено!',
                             status_code=HTTPStatus.NOT_FOUND)
@@ -107,14 +132,11 @@ def update_user_role(db_session: SessionLocal,
 
     user = db_session.query(User).filter(User.id == user_id).first()
 
-    if user.role == 'admin':
-        raise HTTPException(detail='Нельзя поменять роль админу!',
-                            status_code=HTTPStatus.NOT_FOUND)
     if not user:
         raise HTTPException(detail='Такого пользователя не существует!',
                             status_code=HTTPStatus.NOT_FOUND)
 
-    if current_user_role != 'admin':
+    if current_user_role != 'admin' or user.role == 'admin':
         raise HTTPException(detail='Нет прав для этой операции!',
                             status_code=HTTPStatus.NOT_FOUND)
 
