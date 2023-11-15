@@ -1,10 +1,14 @@
-from fastapi import HTTPException
+from typing import Annotated
+
+from fastapi import HTTPException, security, Depends
 from jose import JWTError
 from http import HTTPStatus
 
 from app.models import Ad, User, Comment
 from app.security import password_hasher, create_password_hash, decode_token
 from app.database import SessionLocal
+
+oauth2_scheme = security.OAuth2PasswordBearer(tokenUrl="token")
 
 
 def verify_password(plain_password, hashed_password):
@@ -32,8 +36,9 @@ def get_user_by_username(db_session, username: str):
     return db_session.query(User).filter(User.username == username).first()
 
 
-def get_current_user(db_session, token):
+def get_current_user(db_session, token: Annotated[str, Depends(oauth2_scheme)]):
     """Получение текущего пользователя."""
+
     try:
         get_data = decode_token(token)
     except JWTError:
@@ -47,7 +52,6 @@ def get_current_user(db_session, token):
     if not user:
         raise HTTPException(detail='Пользователь не найден!',
                             status_code=HTTPStatus.NOT_FOUND)
-
     return user
 
 

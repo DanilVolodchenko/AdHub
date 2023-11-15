@@ -8,7 +8,7 @@ JWT_SECRET = JWT_SECRET
 ALGORITHM = ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = ACCESS_TOKEN_EXPIRE_MINUTES
 
-password_hasher = CryptContext(schemes=["bcrypt"])
+password_hasher = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def create_password_hash(password):
