@@ -1,5 +1,3 @@
-from typing import Annotated
-
 from fastapi import HTTPException, security, Depends
 from jose import JWTError
 from http import HTTPStatus
@@ -20,12 +18,12 @@ def verify_password(plain_password, hashed_password):
 
 
 def create_user(db_session, username: str,
-                email: str, password: str, role: str):
+                email: str, password: str):
     """Создает пользователя."""
 
     hashed_password = create_password_hash(password)
     db_user = User(username=username, email=email,
-                   hashed_password=hashed_password, role=role)
+                   hashed_password=hashed_password)
     db_session.add(db_user)
     db_session.commit()
     db_session.refresh(db_user)
@@ -44,23 +42,6 @@ def get_user_by_email(db_session: SessionLocal, email: str):
     return db_session.query(User).filter(User.email == email).first()
 
 
-# def get_current_user(db_session: Session, token: Annotated[str, Depends(oauth2_scheme)]):
-#     """Получение текущего пользователя."""
-#
-#     try:
-#         get_data = decode_token(token)
-#     except JWTError:
-#         raise HTTPException(detail='Неверный токен!',
-#                             status_code=HTTPStatus.NOT_FOUND)
-#
-#     username = get_data.get('username')
-#
-#     user = db_session.query(User).filter(User.username == username).first()
-#
-#     if not user:
-#         raise HTTPException(detail='Пользователь не найден!',
-#                             status_code=HTTPStatus.NOT_FOUND)
-#     return user
 def get_current_user(token: str = Depends(oauth2_scheme), db_session: SessionLocal = Depends(get_db)):
     """Получение текущего пользователя."""
 
@@ -113,7 +94,7 @@ def delete_ad(db_session, ad_id: int, user: User):
 
     ad = db_session.query(Ad).filter(Ad.id == ad_id).first()
     if ad:
-        if ad.owner_id == user.id or user.role == 'admin':
+        if ad.owner_id == user.id or user.is_admin:
             db_session.delete(ad)
             db_session.commit()
         else:
@@ -127,7 +108,7 @@ def delete_ad(db_session, ad_id: int, user: User):
 
 def update_user_role(db_session: SessionLocal,
                      user_id: int, role: str,
-                     current_user_role: str):
+                     current_user: User):
     """Изменение роли пользователя только админом."""
 
     user = db_session.query(User).filter(User.id == user_id).first()
@@ -135,8 +116,7 @@ def update_user_role(db_session: SessionLocal,
     if not user:
         raise HTTPException(detail='Такого пользователя не существует!',
                             status_code=HTTPStatus.NOT_FOUND)
-
-    if current_user_role != 'admin' or user.role == 'admin':
+    if not current_user.is_admin or user.is_admin:
         raise HTTPException(detail='Нет прав для этой операции!',
                             status_code=HTTPStatus.NOT_FOUND)
 
@@ -190,7 +170,7 @@ def delete_comment(db_session: SessionLocal, comment_id: int, user_id: int):
     user = db_session.query(User).filter(User.id == user_id).first()
 
     if comment:
-        if comment.user.id == user.id or user.role == 'admin':
+        if comment.user.id == user.id or user.is_admin:
             db_session.delete(comment)
             db_session.commit()
         else:

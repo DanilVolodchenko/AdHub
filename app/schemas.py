@@ -17,7 +17,6 @@ class RoleEnum(str, Enum):
 class UserBase(BaseModel):
     username: str
     email: EmailStr
-    role: RoleEnum
 
 
 class AdBase(BaseModel):
@@ -30,6 +29,7 @@ class CommentBase(BaseModel):
 
 
 class User(UserBase):
+    role: RoleEnum
     id: int
 
 
@@ -42,6 +42,7 @@ class Comment(CommentBase):
 
 
 class UserRead(UserBase):
+    role: RoleEnum
     id: int
     ads: list[Ad] = []
     comments: list[Comment] = []

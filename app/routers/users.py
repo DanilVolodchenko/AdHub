@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
@@ -24,6 +26,6 @@ def update_user(user_id: int,
                 db: Session = Depends(get_db)):
     """Изменение роли пользователя."""
 
-    user = crud.update_user_role(db, user_id, schemas.RoleEnum.admin, current_user.role)
+    user = crud.update_user_role(db, user_id, schemas.RoleEnum.admin, current_user)
 
     return user

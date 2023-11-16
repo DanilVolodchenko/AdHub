@@ -22,6 +22,10 @@ class User(Base):
     ads = relationship('Ad', back_populates='owner')
     comments = relationship('Comment', back_populates='user')
 
+    @property
+    def is_admin(self):
+        return self.role == 'admin'
+
 
 class Ad(Base):
     """Таблица объявлений."""
